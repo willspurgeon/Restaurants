@@ -9,28 +9,33 @@ import XCTest
 @testable import Restaurants
 
 class RestaurantsTests: XCTestCase {
-
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+    var viewModel: RestaurantsViewModel?
+    var webService = MockWebService()
+    
+    override func setUp() {
+        viewModel = RestaurantsViewModel(webService: webService)
+        viewModel?.currentLocation = .init(latitude: 123, longitude: 124)
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
-
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
-    }
-
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
+    func testFetchSetsResults() async throws {
+        await viewModel?.fetchRestaurants()
+        
+        // Dispatch to the main queue to allow the changes to be made before we test.
+        let expectation = XCTestExpectation()
+        DispatchQueue.main.async {
+            expectation.fulfill()
         }
+        
+        wait(for: [expectation], timeout: 1)
+        XCTAssertEqual(viewModel?.restaurants.count, 1)
+        XCTAssertEqual(viewModel?.restaurants.first?.name, "A Place")
     }
-
+    
+    func testFetchErrorSetsErrorMessage() async throws {
+        webService.shouldFail = true
+        await viewModel?.fetchRestaurants()
+        
+        XCTAssertEqual(viewModel?.restaurants.count, 0)
+        XCTAssertEqual(viewModel?.errorMessage, "The operation couldn’t be completed. (RestaurantsTests.WebError error 0.)")
+    }
 }
